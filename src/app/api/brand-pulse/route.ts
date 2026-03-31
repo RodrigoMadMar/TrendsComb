@@ -115,7 +115,6 @@ Estima los valores de interés (0-100) basándote en cobertura mediática y pres
   for (const block of response.content) {
     if (block.type === "text") {
       jsonText = block.text;
-      break;
     }
   }
 

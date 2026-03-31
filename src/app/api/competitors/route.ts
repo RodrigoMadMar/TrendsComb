@@ -71,11 +71,11 @@ Responde SOLO con el JSON, sin texto adicional.`,
     ],
   });
 
+  // Grab the LAST text block (after all web_search tool results)
   let jsonText = "";
   for (const block of response.content) {
     if (block.type === "text") {
       jsonText = block.text;
-      break;
     }
   }
 

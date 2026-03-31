@@ -63,7 +63,6 @@ Responde SOLO con el JSON, sin texto adicional.`,
     for (const block of response.content) {
       if (block.type === "text") {
         jsonText = block.text;
-        break;
       }
     }
 

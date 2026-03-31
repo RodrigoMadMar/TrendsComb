@@ -116,7 +116,6 @@ Estima el interés de 0-100 basándote en la cantidad de resultados y cobertura 
   for (const block of response.content) {
     if (block.type === "text") {
       jsonText = block.text;
-      break;
     }
   }
 
