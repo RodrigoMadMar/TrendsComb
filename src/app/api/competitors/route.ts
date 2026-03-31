@@ -22,91 +22,69 @@ export interface CompetitorData {
   lastUpdated: string;
 }
 
-async function scrapeMetaAds(
-  url: string,
-  competitorName: string
+async function getMetaAdsViaClaude(
+  competitorName: string,
+  metaAdsUrl: string
 ): Promise<CompetitorAd[]> {
   try {
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    });
-    const page = await context.newPage();
+    const client = getAnthropicClient();
 
-    await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
-    await page.waitForTimeout(4000);
+    const response = await client.messages.create({
+      model: "claude-opus-4-5",
+      max_tokens: 2048,
+      tools: [{ type: "web_search_20250305", name: "web_search" }] as Parameters<typeof client.messages.create>[0]["tools"],
+      messages: [
+        {
+          role: "user",
+          content: `Busca los anuncios activos de ${competitorName} en la Meta Ads Library (biblioteca de anuncios de Facebook/Instagram).
 
-    // Extract ad data
-    const ads = await page.evaluate(() => {
-      const adCards = document.querySelectorAll(
-        '[class*="ad-card"], [class*="AdCard"], [class*="ad_card"]'
-      );
-      const results: Array<{
-        copy: string;
-        type: string;
-        cta: string;
-        platforms: string[];
-      }> = [];
+URL directa de su biblioteca: ${metaAdsUrl}
 
-      adCards.forEach((card, index) => {
-        if (index >= 3) return;
-        const copyEl = card.querySelector(
-          '[class*="body"], [class*="copy"], p, span'
-        );
-        const ctaEl = card.querySelector(
-          '[class*="cta"], [class*="action"], button'
-        );
-        const copy = copyEl?.textContent?.trim() || "";
-        const cta = ctaEl?.textContent?.trim() || "Ver más";
+También busca:
+1. "${competitorName} facebook ads library anuncios activos"
+2. "${competitorName} publicidad Facebook Instagram Chile 2026"
+3. "${competitorName} campaña publicitaria redes sociales Chile"
 
-        if (copy) {
-          results.push({
-            copy: copy.substring(0, 200),
-            type: "imagen",
-            cta,
-            platforms: ["Facebook", "Instagram"],
-          });
-        }
-      });
+Para cada anuncio activo que encuentres, extrae:
+- El texto/copy del anuncio
+- El tipo (imagen, video, carrusel, texto)
+- El call-to-action (CTA)
+- Las plataformas donde aparece (Facebook, Instagram, Messenger, Audience Network)
 
-      return results;
+Devuelve un JSON válido con un array de objetos (máximo 4 anuncios):
+[
+  {
+    "copy": "texto del anuncio (máx 200 chars)",
+    "type": "imagen" | "video" | "carrusel" | "texto",
+    "cta": "texto del botón CTA",
+    "platforms": ["Facebook", "Instagram"]
+  }
+]
+
+Si no encuentras anuncios activos, devuelve un array vacío [].
+Responde SOLO con el JSON, sin texto adicional.`,
+        },
+      ],
     });
 
-    // Take screenshots of individual ads
-    const adsWithScreenshots: CompetitorAd[] = [];
-    const adElements = await page.$$(
-      '[class*="ad-card"], [class*="AdCard"], [class*="ad_card"]'
-    );
-
-    for (let i = 0; i < Math.min(adElements.length, 2); i++) {
-      const element = adElements[i];
-      try {
-        const screenshot = await element.screenshot({ type: "png" });
-        const base64 = Buffer.from(screenshot).toString("base64");
-        const adBase = ads[i] || {
-          copy: `Ad ${i + 1} de ${competitorName}`,
-          type: "imagen" as CompetitorAd["type"],
-          cta: "Ver más",
-          platforms: ["Facebook", "Instagram"],
-        };
-        adsWithScreenshots.push({
-          ...adBase,
-          type: (adBase.type as CompetitorAd["type"]) || "imagen",
-          screenshot: `data:image/png;base64,${base64}`,
-        });
-      } catch {
-        if (ads[i]) {
-          adsWithScreenshots.push(ads[i] as CompetitorAd);
-        }
+    let jsonText = "";
+    for (const block of response.content) {
+      if (block.type === "text") {
+        jsonText = block.text;
+        break;
       }
     }
 
-    await browser.close();
-    return adsWithScreenshots;
+    jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+    try {
+      const ads = JSON.parse(jsonText);
+      return Array.isArray(ads) ? ads : [];
+    } catch {
+      return [];
+    }
   } catch (error) {
-    console.error(`Meta Ads scraping failed for ${competitorName}:`, error);
+    console.error(`Meta Ads search failed for ${competitorName}:`, error);
     return [];
   }
 }
@@ -177,7 +155,7 @@ export async function GET() {
       COMPETITORS.map(async (competitor) => {
         const [claudeInfo, ads] = await Promise.all([
           getCompetitorInfoFromClaude(competitor.name),
-          scrapeMetaAds(competitor.metaAdsLibrary, competitor.name),
+          getMetaAdsViaClaude(competitor.name, competitor.metaAdsLibrary),
         ]);
 
         return {
