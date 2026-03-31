@@ -580,14 +580,6 @@ function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Stat
                             border: "1px solid var(--border)",
                           }}
                         >
-                          {ad.screenshot && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={ad.screenshot}
-                              alt={`Ad ${ai + 1} de ${comp.name}`}
-                              style={{ width: "100%", display: "block" }}
-                            />
-                          )}
                           <div style={{ padding: "10px 12px" }}>
                             <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
                               {(ad.copy || "").substring(0, 100)}{(ad.copy || "").length > 100 ? "..." : ""}
@@ -707,17 +699,25 @@ function InstagramPanel({ data, status }: { data: InstagramData[] | null; status
                     overflow: "hidden",
                   }}
                 >
-                  {/* Post thumbnail */}
-                  {post.displayUrl && (
+                  {/* Post media: video or image */}
+                  {post.type === "Video" && post.videoUrl ? (
+                    <video
+                      src={post.videoUrl}
+                      controls
+                      preload="metadata"
+                      poster={post.thumbnailUrl || undefined}
+                      style={{ width: "100%", maxHeight: 350, display: "block", background: "#000" }}
+                    />
+                  ) : post.thumbnailUrl ? (
                     <a href={post.url} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={post.displayUrl}
+                        src={post.thumbnailUrl}
                         alt={post.caption?.substring(0, 50) || "Instagram post"}
-                        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+                        style={{ width: "100%", maxHeight: 350, objectFit: "cover", display: "block" }}
                       />
                     </a>
-                  )}
+                  ) : null}
                   <div style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                       <div style={{ flex: 1 }}>

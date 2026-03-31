@@ -14,6 +14,8 @@ export interface InstagramPost {
   videoPlayCount?: number;
   timestamp: string;
   displayUrl: string;
+  videoUrl?: string;
+  thumbnailUrl: string;
   ownerFullName: string;
   ownerUsername: string;
   productType: string;
@@ -60,10 +62,16 @@ export async function GET() {
         byAccount.set(username, []);
       }
 
+      const shortCode = (post.shortCode as string) || "";
+      // Instagram public embed thumbnail — doesn't expire like CDN URLs
+      const thumbnailUrl = shortCode
+        ? `https://www.instagram.com/p/${shortCode}/media/?size=l`
+        : (post.displayUrl as string) || "";
+
       byAccount.get(username)!.push({
         id: post.id as string,
         type: post.type as string,
-        shortCode: post.shortCode as string,
+        shortCode,
         caption: ((post.caption as string) || "").substring(0, 300),
         url: post.url as string,
         commentsCount: (post.commentsCount as number) || 0,
@@ -72,6 +80,8 @@ export async function GET() {
         videoPlayCount: (post.videoPlayCount as number) || undefined,
         timestamp: post.timestamp as string,
         displayUrl: post.displayUrl as string,
+        videoUrl: (post.videoUrl as string) || undefined,
+        thumbnailUrl,
         ownerFullName: post.ownerFullName as string,
         ownerUsername: username,
         productType: (post.productType as string) || "post",
