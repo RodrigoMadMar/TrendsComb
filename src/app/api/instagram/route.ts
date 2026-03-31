@@ -14,6 +14,8 @@ export interface InstagramPost {
   videoPlayCount?: number;
   timestamp: string;
   displayUrl: string;
+  videoUrl?: string;
+  thumbnailUrl: string;
   ownerFullName: string;
   ownerUsername: string;
   productType: string;
@@ -60,10 +62,22 @@ export async function GET() {
         byAccount.set(username, []);
       }
 
+      const shortCode = (post.shortCode as string) || "";
+      const rawDisplayUrl = (post.displayUrl as string) || "";
+      const rawVideoUrl = (post.videoUrl as string) || "";
+
+      // Proxy CDN URLs through our server to avoid hotlinking blocks
+      const thumbnailUrl = rawDisplayUrl
+        ? `/api/proxy-image?url=${encodeURIComponent(rawDisplayUrl)}`
+        : "";
+      const videoUrl = rawVideoUrl
+        ? `/api/proxy-image?url=${encodeURIComponent(rawVideoUrl)}`
+        : undefined;
+
       byAccount.get(username)!.push({
         id: post.id as string,
         type: post.type as string,
-        shortCode: post.shortCode as string,
+        shortCode,
         caption: ((post.caption as string) || "").substring(0, 300),
         url: post.url as string,
         commentsCount: (post.commentsCount as number) || 0,
@@ -71,7 +85,9 @@ export async function GET() {
         videoViewCount: (post.videoViewCount as number) || undefined,
         videoPlayCount: (post.videoPlayCount as number) || undefined,
         timestamp: post.timestamp as string,
-        displayUrl: post.displayUrl as string,
+        displayUrl: rawDisplayUrl,
+        videoUrl,
+        thumbnailUrl,
         ownerFullName: post.ownerFullName as string,
         ownerUsername: username,
         productType: (post.productType as string) || "post",

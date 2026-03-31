@@ -9,6 +9,7 @@ import type { BrandPulseResult } from "./api/brand-pulse/route";
 import type { ScoredTrend } from "./api/score/route";
 import type { InstagramData } from "./api/instagram/route";
 import type { TikTokData } from "./api/tiktok/route";
+import type { MetaAdsData } from "./api/meta-ads/route";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Status = "idle" | "loading" | "done" | "error";
@@ -503,7 +504,6 @@ function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Stat
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {data.map((comp, ci) => {
         const promos = Array.isArray(comp.currentPromos) ? comp.currentPromos : [];
-        const ads = Array.isArray(comp.ads) ? comp.ads : [];
 
         return (
           <div
@@ -561,67 +561,6 @@ function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Stat
                 </div>
               )}
 
-              {/* Ads */}
-              {ads.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
-                    Ads activos ({ads.length})
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-                    {ads.map((ad, ai) => {
-                      const platforms = Array.isArray(ad.platforms) ? ad.platforms : [];
-                      return (
-                        <div
-                          key={ai}
-                          style={{
-                            background: "var(--surface2)",
-                            borderRadius: 10,
-                            overflow: "hidden",
-                            border: "1px solid var(--border)",
-                          }}
-                        >
-                          {ad.screenshot && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={ad.screenshot}
-                              alt={`Ad ${ai + 1} de ${comp.name}`}
-                              style={{ width: "100%", display: "block" }}
-                            />
-                          )}
-                          <div style={{ padding: "10px 12px" }}>
-                            <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
-                              {(ad.copy || "").substring(0, 100)}{(ad.copy || "").length > 100 ? "..." : ""}
-                            </div>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              {ad.type && (
-                                <span style={{ fontSize: 10, background: "var(--surface)", padding: "2px 6px", borderRadius: 4, color: "var(--text-muted)" }}>
-                                  {ad.type}
-                                </span>
-                              )}
-                              {platforms.map((pl, pli) => (
-                                <span key={pli} style={{ fontSize: 10, background: "var(--surface)", padding: "2px 6px", borderRadius: 4, color: "var(--text-muted)" }}>
-                                  {pl}
-                                </span>
-                              ))}
-                            </div>
-                            {ad.cta && (
-                              <div style={{ marginTop: 6, fontSize: 11, color: comp.color || "#666", fontWeight: 600 }}>
-                                → {ad.cta}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {ads.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
-                  No se detectaron ads activos en Meta Ads Library.
-                </div>
-              )}
             </div>
           </div>
         );
@@ -707,17 +646,25 @@ function InstagramPanel({ data, status }: { data: InstagramData[] | null; status
                     overflow: "hidden",
                   }}
                 >
-                  {/* Post thumbnail */}
-                  {post.displayUrl && (
+                  {/* Post media: video or image */}
+                  {post.type === "Video" && post.videoUrl ? (
+                    <video
+                      src={post.videoUrl}
+                      controls
+                      preload="metadata"
+                      poster={post.thumbnailUrl || undefined}
+                      style={{ width: "100%", maxHeight: 350, display: "block", background: "#000" }}
+                    />
+                  ) : post.thumbnailUrl ? (
                     <a href={post.url} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={post.displayUrl}
+                        src={post.thumbnailUrl}
                         alt={post.caption?.substring(0, 50) || "Instagram post"}
-                        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+                        style={{ width: "100%", maxHeight: 350, objectFit: "cover", display: "block" }}
                       />
                     </a>
-                  )}
+                  ) : null}
                   <div style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                       <div style={{ flex: 1 }}>
@@ -951,6 +898,128 @@ function TikTokPanel({ data, status }: { data: TikTokData[] | null; status: Stat
   );
 }
 
+// ─── Module: Meta Ads ────────────────────────────────────────────────────────
+function MetaAdsPanel({ data, status }: { data: MetaAdsData[] | null; status: Status }) {
+  if (status === "idle") return (
+    <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+      Presiona &quot;Escanear Meta Ads&quot; para obtener anuncios activos de los competidores.
+    </div>
+  );
+  if (!data || !Array.isArray(data)) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {data.map((page, pi) => (
+        <div
+          key={pi}
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 16,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{page.pageName}</div>
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>
+                {page.totalAds} anuncios activos en Meta Ads Library
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {page.ads.map((ad, ai) => (
+                <div
+                  key={ai}
+                  className="animate-fadeIn"
+                  style={{
+                    background: "var(--surface2)",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {/* Ad media */}
+                  {ad.format === "video" && ad.videoUrl ? (
+                    <video
+                      src={ad.videoUrl}
+                      controls
+                      preload="metadata"
+                      poster={ad.videoPreviewUrl || undefined}
+                      style={{ width: "100%", maxHeight: 300, display: "block", background: "#000" }}
+                    />
+                  ) : ad.format === "video" && ad.videoPreviewUrl ? (
+                    <a href={ad.adLibraryUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={ad.videoPreviewUrl}
+                        alt={`Ad de ${ad.pageName}`}
+                        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+                      />
+                    </a>
+                  ) : ad.imageUrl ? (
+                    <a href={ad.adLibraryUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={ad.imageUrl}
+                        alt={`Ad de ${ad.pageName}`}
+                        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+                      />
+                    </a>
+                  ) : null}
+
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5 }}>
+                      {(ad.copy || "Sin texto").substring(0, 200)}{(ad.copy || "").length > 200 ? "..." : ""}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                      <span style={{ fontSize: 10, background: "var(--surface)", padding: "2px 8px", borderRadius: 4, color: "var(--accent)", fontWeight: 600 }}>
+                        {ad.format}
+                      </span>
+                      {ad.platforms.map((pl, pli) => (
+                        <span key={pli} style={{ fontSize: 10, background: "var(--surface)", padding: "2px 6px", borderRadius: 4, color: "var(--text-muted)" }}>
+                          {pl}
+                        </span>
+                      ))}
+                      {ad.ctaText && (
+                        <span style={{ fontSize: 10, background: "rgba(245,158,11,0.15)", padding: "2px 6px", borderRadius: 4, color: "var(--accent)" }}>
+                          → {ad.ctaText}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>
+                      {ad.startDate ? `Desde ${ad.startDate.split(" ")[0]}` : ""}
+                      {ad.endDate ? ` · Hasta ${ad.endDate.split(" ")[0]}` : ""}
+                    </div>
+                    <a
+                      href={ad.adLibraryUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none", marginTop: 6, display: "inline-block" }}
+                    >
+                      Ver en Meta Ads Library →
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function EmptyState({ text }: { text: string }) {
   return (
     <div style={{ padding: "32px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
@@ -972,6 +1041,7 @@ export default function Page() {
   const [scoredState, setScoredState] = useState<ModuleState<ScoredTrend[]>>({ status: "idle", data: null });
   const [instagramState, setInstagramState] = useState<ModuleState<InstagramData[]>>({ status: "idle", data: null });
   const [tiktokState, setTiktokState] = useState<ModuleState<TikTokData[]>>({ status: "idle", data: null });
+  const [metaAdsState, setMetaAdsState] = useState<ModuleState<MetaAdsData[]>>({ status: "idle", data: null });
 
   const scanX = useCallback(async () => {
     setXState({ status: "loading", data: null });
@@ -1048,6 +1118,21 @@ export default function Page() {
       setTiktokState({ status: "done", data });
     } catch {
       setTiktokState({ status: "error", data: null });
+    }
+  }, []);
+
+  const scanMetaAds = useCallback(async () => {
+    setMetaAdsState({ status: "loading", data: null });
+    try {
+      const res = await fetch("/api/meta-ads");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        setMetaAdsState({ status: "error", data: null });
+        return;
+      }
+      setMetaAdsState({ status: "done", data });
+    } catch {
+      setMetaAdsState({ status: "error", data: null });
     }
   }, []);
 
@@ -1327,6 +1412,27 @@ export default function Page() {
               <ScanButton onClick={scanCompetitors} loading={competitorsState.status === "loading"} label="Escanear competencia" />
             </div>
             <CompetitorPanel data={competitorsState.data} status={competitorsState.status} />
+
+            {/* Meta Ads Section */}
+            <div style={{ marginTop: 32 }}>
+              <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>📢 Meta Ads Library</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Anuncios activos en Facebook e Instagram via Apify</div>
+                </div>
+                <ScanButton onClick={scanMetaAds} loading={metaAdsState.status === "loading"} label="Escanear Meta Ads" />
+              </div>
+              {metaAdsState.status === "loading" && (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-dim)" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Spinner /></div>
+                  Cargando anuncios de Meta Ads Library...
+                </div>
+              )}
+              {metaAdsState.status === "error" && (
+                <EmptyState text="Error al cargar Meta Ads. Verifica APIFY_META_ADS_DATASET_ID en las variables de entorno." />
+              )}
+              <MetaAdsPanel data={metaAdsState.data} status={metaAdsState.status} />
+            </div>
 
             {/* Instagram Section */}
             <div style={{ marginTop: 32 }}>
