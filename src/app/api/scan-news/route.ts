@@ -17,6 +17,10 @@ export async function GET() {
   try {
     const client = getAnthropicClient();
 
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const formatDate = (d: Date) => d.toISOString().split("T")[0];
+
     const response = await client.messages.create({
       model: "claude-opus-4-5",
       max_tokens: 2048,
@@ -24,12 +28,16 @@ export async function GET() {
       messages: [
         {
           role: "user",
-          content: `Busca las noticias más recientes sobre regulación de combustible en Chile. Busca específicamente:
-1. "MEPCO Chile hoy"
-2. "precio paridad combustible ENAP"
-3. "impuesto específico combustible Chile"
+          content: `Busca noticias sobre regulación de combustible en Chile publicadas ÚNICAMENTE en la última semana (del ${formatDate(weekAgo)} al ${formatDate(today)}). No incluyas noticias más antiguas.
+
+Busca específicamente:
+1. "MEPCO Chile ${formatDate(today)}"
+2. "precio paridad combustible ENAP semana"
+3. "impuesto específico combustible Chile ${today.getFullYear()}"
 4. "subsidio bencina Chile"
-5. "regulación combustible Chile 2026"
+5. "regulación combustible Chile noticias recientes"
+
+IMPORTANTE: Solo incluye noticias de los últimos 7 días. Si no encuentras noticias recientes de esta semana, devuelve un array vacío [].
 
 Estas noticias son valiosas porque cambios regulatorios generan oportunidades de comunicación para Copec.
 
