@@ -22,108 +22,51 @@ export interface CompetitorData {
   lastUpdated: string;
 }
 
-async function getMetaAdsViaClaude(
+async function getFullCompetitorIntel(
   competitorName: string,
+  facebookUrl: string,
   metaAdsUrl: string
-): Promise<CompetitorAd[]> {
-  try {
-    const client = getAnthropicClient();
-
-    const response = await client.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 2048,
-      tools: [{ type: "web_search_20250305", name: "web_search" }] as Parameters<typeof client.messages.create>[0]["tools"],
-      messages: [
-        {
-          role: "user",
-          content: `Busca los anuncios activos de ${competitorName} en la Meta Ads Library (biblioteca de anuncios de Facebook/Instagram).
-
-URL directa de su biblioteca: ${metaAdsUrl}
-
-También busca:
-1. "${competitorName} facebook ads library anuncios activos"
-2. "${competitorName} publicidad Facebook Instagram Chile 2026"
-3. "${competitorName} campaña publicitaria redes sociales Chile"
-
-Para cada anuncio activo que encuentres, extrae:
-- El texto/copy del anuncio
-- El tipo (imagen, video, carrusel, texto)
-- El call-to-action (CTA)
-- Las plataformas donde aparece (Facebook, Instagram, Messenger, Audience Network)
-
-Devuelve un JSON válido con un array de objetos (máximo 4 anuncios):
-[
-  {
-    "copy": "texto del anuncio (máx 200 chars)",
-    "type": "imagen" | "video" | "carrusel" | "texto",
-    "cta": "texto del botón CTA",
-    "platforms": ["Facebook", "Instagram"]
-  }
-]
-
-Si no encuentras anuncios activos, devuelve un array vacío [].
-Responde SOLO con el JSON, sin texto adicional.`,
-        },
-      ],
-    });
-
-    let jsonText = "";
-    for (const block of response.content) {
-      if (block.type === "text") {
-        jsonText = block.text;
-        break;
-      }
-    }
-
-    jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-
-    try {
-      const ads = JSON.parse(jsonText);
-      return Array.isArray(ads) ? ads : [];
-    } catch {
-      return [];
-    }
-  } catch (error) {
-    console.error(`Meta Ads search failed for ${competitorName}:`, error);
-    return [];
-  }
-}
-
-async function getCompetitorInfoFromClaude(
-  competitorName: string
-): Promise<{ activityLevel: "alta" | "media" | "baja"; currentPromos: string[]; messaging: string }> {
+): Promise<Omit<CompetitorData, "name" | "color" | "lastUpdated">> {
   const client = getAnthropicClient();
-
-  const searches: Record<string, string[]> = {
-    "Shell Chile": [
-      "Shell Chile promoción bencina 2026",
-      "Shell Chile campaña publicitaria",
-    ],
-    "Aramco Estaciones Chile": [
-      "Aramco estaciones Chile combustible",
-      "Aramco Chile promoción",
-    ],
-  };
-
-  const searchTerms = searches[competitorName] || [`${competitorName} promoción combustible Chile`];
 
   const response = await client.messages.create({
     model: "claude-opus-4-5",
-    max_tokens: 1024,
+    max_tokens: 3000,
     tools: [{ type: "web_search_20250305", name: "web_search" }] as Parameters<typeof client.messages.create>[0]["tools"],
     messages: [
       {
         role: "user",
-        content: `Busca información sobre la actividad reciente de ${competitorName} en Chile. Busca: ${searchTerms.join(", ")}.
+        content: `Necesito inteligencia competitiva completa sobre "${competitorName}" (estación de combustible en Chile).
 
-Devuelve un JSON con este formato exacto:
+Realiza MÚLTIPLES búsquedas web para encontrar:
+
+1. PROMOCIONES ACTIVAS: Busca "${competitorName} promoción" y "${competitorName} descuento combustible Chile 2026"
+2. PUBLICIDAD EN REDES: Busca "${competitorName} publicidad Facebook" y "${competitorName} Instagram ads Chile". También visita su página de Facebook: ${facebookUrl} y busca posts recientes con anuncios.
+3. ANUNCIOS EN META: Busca "site:facebook.com/ads/library ${competitorName}" y "${competitorName} meta ads library Chile anuncios activos 2026". La URL de su biblioteca de anuncios es: ${metaAdsUrl}
+4. CAMPAÑAS RECIENTES: Busca "${competitorName} campaña marketing Chile 2026"
+
+Con toda la información recopilada, devuelve un JSON con este formato exacto:
 {
   "activityLevel": "alta" | "media" | "baja",
   "currentPromos": ["descripción de promo 1", "descripción de promo 2"],
-  "messaging": "resumen de su mensaje principal actual en 1-2 frases"
+  "messaging": "resumen de su mensaje/posicionamiento principal actual en 1-2 frases",
+  "ads": [
+    {
+      "copy": "texto/copy del anuncio encontrado (máx 200 chars)",
+      "type": "imagen" | "video" | "carrusel" | "texto",
+      "cta": "call to action del anuncio",
+      "platforms": ["Facebook", "Instagram"]
+    }
+  ]
 }
 
-Responde SOLO con el JSON.`,
+IMPORTANTE:
+- En "ads" incluye todos los anuncios que hayas encontrado (máximo 5). Si encontraste ads en Meta Ads Library, Facebook o Instagram, inclúyelos.
+- Si no encuentras anuncios específicos, pon un array vacío [].
+- En "currentPromos" incluye cualquier promoción activa que encuentres.
+- "activityLevel" debe reflejar cuánta actividad publicitaria tiene actualmente.
+
+Responde SOLO con el JSON, sin texto adicional.`,
       },
     ],
   });
@@ -139,12 +82,19 @@ Responde SOLO con el JSON.`,
   jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   try {
-    return JSON.parse(jsonText);
+    const parsed = JSON.parse(jsonText);
+    return {
+      activityLevel: parsed.activityLevel || "media",
+      currentPromos: parsed.currentPromos || [],
+      messaging: parsed.messaging || "Sin información disponible",
+      ads: Array.isArray(parsed.ads) ? parsed.ads : [],
+    };
   } catch {
     return {
       activityLevel: "media",
       currentPromos: ["Sin información disponible"],
       messaging: "No se pudo obtener información reciente.",
+      ads: [],
     };
   }
 }
@@ -153,18 +103,19 @@ export async function GET() {
   try {
     const results: CompetitorData[] = await Promise.all(
       COMPETITORS.map(async (competitor) => {
-        const [claudeInfo, ads] = await Promise.all([
-          getCompetitorInfoFromClaude(competitor.name),
-          getMetaAdsViaClaude(competitor.name, competitor.metaAdsLibrary),
-        ]);
+        const intel = await getFullCompetitorIntel(
+          competitor.name,
+          competitor.facebook,
+          competitor.metaAdsLibrary
+        );
 
         return {
           name: competitor.name,
           color: competitor.color,
-          activityLevel: claudeInfo.activityLevel,
-          currentPromos: claudeInfo.currentPromos,
-          messaging: claudeInfo.messaging,
-          ads,
+          activityLevel: intel.activityLevel,
+          currentPromos: intel.currentPromos,
+          messaging: intel.messaging,
+          ads: intel.ads,
           lastUpdated: new Date().toISOString(),
         };
       })

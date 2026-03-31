@@ -811,6 +811,10 @@ export default function Page() {
     try {
       const res = await fetch("/api/competitors");
       const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        setCompetitorsState({ status: "error", data: null });
+        return;
+      }
       setCompetitorsState({ status: "done", data });
     } catch {
       setCompetitorsState({ status: "error", data: null });
@@ -822,6 +826,10 @@ export default function Page() {
     try {
       const res = await fetch("/api/instagram");
       const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        setInstagramState({ status: "error", data: null });
+        return;
+      }
       setInstagramState({ status: "done", data });
     } catch {
       setInstagramState({ status: "error", data: null });
