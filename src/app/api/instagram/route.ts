@@ -63,10 +63,16 @@ export async function GET() {
       }
 
       const shortCode = (post.shortCode as string) || "";
-      // Instagram public embed thumbnail — doesn't expire like CDN URLs
-      const thumbnailUrl = shortCode
-        ? `https://www.instagram.com/p/${shortCode}/media/?size=l`
-        : (post.displayUrl as string) || "";
+      const rawDisplayUrl = (post.displayUrl as string) || "";
+      const rawVideoUrl = (post.videoUrl as string) || "";
+
+      // Proxy CDN URLs through our server to avoid hotlinking blocks
+      const thumbnailUrl = rawDisplayUrl
+        ? `/api/proxy-image?url=${encodeURIComponent(rawDisplayUrl)}`
+        : "";
+      const videoUrl = rawVideoUrl
+        ? `/api/proxy-image?url=${encodeURIComponent(rawVideoUrl)}`
+        : undefined;
 
       byAccount.get(username)!.push({
         id: post.id as string,
@@ -79,8 +85,8 @@ export async function GET() {
         videoViewCount: (post.videoViewCount as number) || undefined,
         videoPlayCount: (post.videoPlayCount as number) || undefined,
         timestamp: post.timestamp as string,
-        displayUrl: post.displayUrl as string,
-        videoUrl: (post.videoUrl as string) || undefined,
+        displayUrl: rawDisplayUrl,
+        videoUrl,
         thumbnailUrl,
         ownerFullName: post.ownerFullName as string,
         ownerUsername: username,

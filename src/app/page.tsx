@@ -504,7 +504,6 @@ function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Stat
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {data.map((comp, ci) => {
         const promos = Array.isArray(comp.currentPromos) ? comp.currentPromos : [];
-        const ads = Array.isArray(comp.ads) ? comp.ads : [];
 
         return (
           <div
@@ -562,59 +561,6 @@ function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Stat
                 </div>
               )}
 
-              {/* Ads */}
-              {ads.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
-                    Ads activos ({ads.length})
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-                    {ads.map((ad, ai) => {
-                      const platforms = Array.isArray(ad.platforms) ? ad.platforms : [];
-                      return (
-                        <div
-                          key={ai}
-                          style={{
-                            background: "var(--surface2)",
-                            borderRadius: 10,
-                            overflow: "hidden",
-                            border: "1px solid var(--border)",
-                          }}
-                        >
-                          <div style={{ padding: "10px 12px" }}>
-                            <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
-                              {(ad.copy || "").substring(0, 100)}{(ad.copy || "").length > 100 ? "..." : ""}
-                            </div>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              {ad.type && (
-                                <span style={{ fontSize: 10, background: "var(--surface)", padding: "2px 6px", borderRadius: 4, color: "var(--text-muted)" }}>
-                                  {ad.type}
-                                </span>
-                              )}
-                              {platforms.map((pl, pli) => (
-                                <span key={pli} style={{ fontSize: 10, background: "var(--surface)", padding: "2px 6px", borderRadius: 4, color: "var(--text-muted)" }}>
-                                  {pl}
-                                </span>
-                              ))}
-                            </div>
-                            {ad.cta && (
-                              <div style={{ marginTop: 6, fontSize: 11, color: comp.color || "#666", fontWeight: 600 }}>
-                                → {ad.cta}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {ads.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
-                  No se detectaron ads activos en Meta Ads Library.
-                </div>
-              )}
             </div>
           </div>
         );
