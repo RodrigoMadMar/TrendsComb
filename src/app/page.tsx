@@ -8,6 +8,7 @@ import type { CompetitorData } from "./api/competitors/route";
 import type { BrandPulseResult } from "./api/brand-pulse/route";
 import type { ScoredTrend } from "./api/score/route";
 import type { InstagramData } from "./api/instagram/route";
+import type { TikTokData } from "./api/tiktok/route";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Status = "idle" | "loading" | "done" | "error";
@@ -695,7 +696,7 @@ function InstagramPanel({ data, status }: { data: InstagramData[] | null; status
           </div>
 
           <div style={{ padding: 20 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
               {account.posts.map((post, pi) => (
                 <div
                   key={pi}
@@ -703,55 +704,243 @@ function InstagramPanel({ data, status }: { data: InstagramData[] | null; status
                   style={{
                     background: "var(--surface2)",
                     borderRadius: 10,
-                    padding: "12px 14px",
+                    overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
-                        {post.caption.substring(0, 200)}{post.caption.length > 200 ? "..." : ""}
-                      </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                          {post.type === "Video" ? "🎬" : "📷"} {post.productType}
-                        </span>
-                        <span style={{ fontSize: 11, color: "var(--danger)" }}>
-                          ❤️ {post.likesCount.toLocaleString()}
-                        </span>
-                        <span style={{ fontSize: 11, color: "var(--info)" }}>
-                          💬 {post.commentsCount}
-                        </span>
-                        {post.videoPlayCount && (
-                          <span style={{ fontSize: 11, color: "var(--success)" }}>
-                            ▶️ {post.videoPlayCount.toLocaleString()}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                          {new Date(post.timestamp).toLocaleDateString("es-CL")}
-                        </span>
-                      </div>
-                    </div>
-                    <a
-                      href={post.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none", flexShrink: 0 }}
-                    >
-                      Ver →
+                  {/* Post thumbnail */}
+                  {post.displayUrl && (
+                    <a href={post.url} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={post.displayUrl}
+                        alt={post.caption?.substring(0, 50) || "Instagram post"}
+                        style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }}
+                      />
                     </a>
-                  </div>
-
-                  {/* Top comments */}
-                  {post.latestComments.length > 0 && (
-                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
-                      {post.latestComments.slice(0, 2).map((c, ci) => (
-                        <div key={ci} style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600, color: "var(--text-dim)" }}>@{c.ownerUsername}</span>{" "}
-                          {c.text.substring(0, 120)}{c.text.length > 120 ? "..." : ""}
-                        </div>
-                      ))}
-                    </div>
                   )}
+                  <div style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6, lineHeight: 1.5 }}>
+                          {post.caption.substring(0, 200)}{post.caption.length > 200 ? "..." : ""}
+                        </div>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                            {post.type === "Video" ? "🎬" : "📷"} {post.productType}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--danger)" }}>
+                            ❤️ {post.likesCount.toLocaleString()}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--info)" }}>
+                            💬 {post.commentsCount}
+                          </span>
+                          {post.videoPlayCount && (
+                            <span style={{ fontSize: 11, color: "var(--success)" }}>
+                              ▶️ {post.videoPlayCount.toLocaleString()}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                            {new Date(post.timestamp).toLocaleDateString("es-CL")}
+                          </span>
+                        </div>
+                      </div>
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 11, color: "var(--accent)", textDecoration: "none", flexShrink: 0 }}
+                      >
+                        Ver →
+                      </a>
+                    </div>
+
+                    {/* Top comments */}
+                    {post.latestComments && post.latestComments.length > 0 && (
+                      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+                        {post.latestComments.slice(0, 2).map((c, ci) => (
+                          <div key={ci} style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600, color: "var(--text-dim)" }}>@{c.ownerUsername}</span>{" "}
+                            {(c.text || "").substring(0, 120)}{(c.text || "").length > 120 ? "..." : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Module: TikTok ──────────────────────────────────────────────────────────
+function TikTokPanel({ data, status }: { data: TikTokData[] | null; status: Status }) {
+  if (status === "idle") return (
+    <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+      Presiona &quot;Escanear TikTok&quot; para obtener datos de los competidores.
+    </div>
+  );
+  if (!data || !Array.isArray(data)) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {data.map((account, ai) => (
+        <div
+          key={ai}
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 16,
+            overflow: "hidden",
+          }}
+        >
+          {/* Account header */}
+          <div
+            style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {account.posts[0]?.authorAvatar && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={account.posts[0].authorAvatar}
+                  alt={account.accountName}
+                  style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
+                />
+              )}
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>
+                  {account.accountName}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 1 }}>
+                  @{account.account} · {account.posts.length} videos
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 16, textAlign: "center" }}>
+              <div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700, color: "var(--danger)" }}>
+                  {account.totalLikes >= 1000 ? `${(account.totalLikes / 1000).toFixed(1)}K` : account.totalLikes}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>likes</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700, color: "var(--success)" }}>
+                  {account.totalViews >= 1000000
+                    ? `${(account.totalViews / 1000000).toFixed(1)}M`
+                    : account.totalViews >= 1000
+                    ? `${(account.totalViews / 1000).toFixed(1)}K`
+                    : account.totalViews}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>views</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700, color: "var(--info)" }}>
+                  {account.totalComments.toLocaleString()}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>comments</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700, color: "#8B5CF6" }}>
+                  {account.totalShares.toLocaleString()}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>shares</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Posts grid with video embeds */}
+          <div style={{ padding: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {account.posts.map((post, pi) => (
+                <div
+                  key={pi}
+                  className="animate-fadeIn"
+                  style={{
+                    background: "var(--surface2)",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {/* Video embed or cover */}
+                  {post.webVideoUrl ? (
+                    <div style={{ position: "relative" }}>
+                      {post.coverUrl && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={post.coverUrl}
+                          alt={post.text?.substring(0, 50) || "TikTok video"}
+                          style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }}
+                        />
+                      )}
+                      <a
+                        href={post.webVideoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(0,0,0,0.3)",
+                          color: "#fff",
+                          fontSize: 36,
+                          textDecoration: "none",
+                        }}
+                      >
+                        ▶
+                      </a>
+                    </div>
+                  ) : post.coverUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={post.coverUrl}
+                      alt={post.text?.substring(0, 50) || "TikTok video"}
+                      style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }}
+                    />
+                  ) : null}
+
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 8, lineHeight: 1.5 }}>
+                      {(post.text || "").substring(0, 150)}{(post.text || "").length > 150 ? "..." : ""}
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "var(--danger)" }}>
+                        ❤️ {post.diggCount.toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--success)" }}>
+                        ▶️ {post.playCount >= 1000000
+                          ? `${(post.playCount / 1000000).toFixed(1)}M`
+                          : post.playCount >= 1000
+                          ? `${(post.playCount / 1000).toFixed(1)}K`
+                          : post.playCount}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--info)" }}>
+                        💬 {post.commentCount}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#8B5CF6" }}>
+                        🔁 {post.shareCount}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {new Date(post.createTime).toLocaleDateString("es-CL")}
+                      </span>
+                    </div>
+                    {post.musicTitle && (
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>
+                        🎵 {post.musicTitle}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -782,6 +971,7 @@ export default function Page() {
   const [brandPulseState, setBrandPulseState] = useState<ModuleState<BrandPulseResult>>({ status: "idle", data: null });
   const [scoredState, setScoredState] = useState<ModuleState<ScoredTrend[]>>({ status: "idle", data: null });
   const [instagramState, setInstagramState] = useState<ModuleState<InstagramData[]>>({ status: "idle", data: null });
+  const [tiktokState, setTiktokState] = useState<ModuleState<TikTokData[]>>({ status: "idle", data: null });
 
   const scanX = useCallback(async () => {
     setXState({ status: "loading", data: null });
@@ -843,6 +1033,21 @@ export default function Page() {
       setInstagramState({ status: "done", data });
     } catch {
       setInstagramState({ status: "error", data: null });
+    }
+  }, []);
+
+  const scanTikTok = useCallback(async () => {
+    setTiktokState({ status: "loading", data: null });
+    try {
+      const res = await fetch("/api/tiktok");
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        setTiktokState({ status: "error", data: null });
+        return;
+      }
+      setTiktokState({ status: "done", data });
+    } catch {
+      setTiktokState({ status: "error", data: null });
     }
   }, []);
 
@@ -1142,6 +1347,27 @@ export default function Page() {
                 <EmptyState text="Error al cargar datos de Instagram." />
               )}
               <InstagramPanel data={instagramState.data} status={instagramState.status} />
+            </div>
+
+            {/* TikTok Section */}
+            <div style={{ marginTop: 32 }}>
+              <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>🎵 TikTok Competidores</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Videos recientes y métricas de engagement via Apify</div>
+                </div>
+                <ScanButton onClick={scanTikTok} loading={tiktokState.status === "loading"} label="Escanear TikTok" />
+              </div>
+              {tiktokState.status === "loading" && (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-dim)" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Spinner /></div>
+                  Cargando datos de TikTok...
+                </div>
+              )}
+              {tiktokState.status === "error" && (
+                <EmptyState text="Error al cargar datos de TikTok. Verifica APIFY_TIKTOK_DATASET_ID en las variables de entorno." />
+              )}
+              <TikTokPanel data={tiktokState.data} status={tiktokState.status} />
             </div>
           </div>
         )}
