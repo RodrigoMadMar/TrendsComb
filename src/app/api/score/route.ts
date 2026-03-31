@@ -67,7 +67,6 @@ Responde SOLO con el JSON array.`;
     for (const block of response.content) {
       if (block.type === "text") {
         jsonText = block.text;
-        break;
       }
     }
 
