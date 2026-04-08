@@ -16,59 +16,7 @@ export interface BrandPulseResult {
   period: string;
 }
 
-async function scrapeBrandPulse(): Promise<BrandPulseResult | null> {
-  try {
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-
-    await page.goto(
-      "https://trends.google.com/trends/explore?date=today%201-m&geo=CL&q=Copec,Shell%20Chile,Aramco%20Chile&hl=es",
-      { waitUntil: "networkidle", timeout: 30000 }
-    );
-
-    await page.waitForTimeout(3000);
-
-    const trendsData = await page.evaluate(() => {
-      const legendItems = document.querySelectorAll(
-        ".legend-label-text, .label-text"
-      );
-      const brands: string[] = [];
-      legendItems.forEach((item) => {
-        if (item.textContent) brands.push(item.textContent.trim());
-      });
-      return brands;
-    });
-
-    await browser.close();
-
-    if (trendsData.length > 0) {
-      const brandColors: Record<string, string> = {
-        Copec: "#F59E0B",
-        "Shell Chile": "#FFD500",
-        "Aramco Chile": "#009639",
-      };
-
-      return {
-        brands: trendsData.map((brand, i) => ({
-          brand,
-          interest: Math.max(20, 90 - i * 20),
-          trend: i === 0 ? "up" : "stable",
-          color: brandColors[brand] || "#6B7280",
-        })),
-        source: "Google Trends (Playwright)",
-        period: "Último mes",
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Brand pulse Playwright scraping failed:", error);
-    return null;
-  }
-}
-
-async function fallbackWithClaude(): Promise<BrandPulseResult> {
+async function fetchWithClaude(): Promise<BrandPulseResult> {
   const client = getAnthropicClient();
 
   const response = await client.messages.create({
@@ -137,12 +85,7 @@ Estima los valores de interés (0-100) basándote en cobertura mediática y pres
 
 export async function GET() {
   try {
-    let result = await scrapeBrandPulse();
-
-    if (!result) {
-      result = await fallbackWithClaude();
-    }
-
+    const result = await fetchWithClaude();
     return NextResponse.json(result);
   } catch (error) {
     console.error("brand-pulse error:", error);

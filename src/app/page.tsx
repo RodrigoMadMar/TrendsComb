@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import type { XTrend } from "./api/scan-x/route";
 import type { GoogleTrendsResult } from "./api/scan-trends/route";
 import type { NewsItem } from "./api/scan-news/route";
-import type { CompetitorData } from "./api/competitors/route";
 import type { BrandPulseResult } from "./api/brand-pulse/route";
 import type { ScoredTrend } from "./api/score/route";
 import type { InstagramData } from "./api/instagram/route";
@@ -19,6 +18,26 @@ interface ModuleState<T> {
   status: Status;
   data: T | null;
   error?: string;
+}
+
+interface AdScreenshot {
+  adUrl: string;
+  snapshotUrl: string;
+  bodyPreview: string;
+  screenshot: string | null;
+}
+
+interface CompetitorResult {
+  competitor: string;
+  ads: AdScreenshot[];
+  analysis: {
+    promos: string[];
+    summary: string;
+    channels: string[];
+  };
+  metaAdsLibraryUrl: string;
+  totalAdsFound: number;
+  scannedAt: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -492,83 +511,6 @@ function ScoredTrendCard({ trend, index }: { trend: ScoredTrend; index: number }
   );
 }
 
-// ─── Competitor Panel ─────────────────────────────────────────────────────────
-function CompetitorPanel({ data }: { data: CompetitorData[] | null; status: Status }) {
-  if (!data || !Array.isArray(data)) return (
-    <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-      Usa el botón &quot;Escanear competencia&quot; para obtener datos.
-    </div>
-  );
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {data.map((comp, ci) => {
-        const promos = Array.isArray(comp.currentPromos) ? comp.currentPromos : [];
-
-        return (
-          <div
-            key={ci}
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          >
-            {/* Competitor header */}
-            <div
-              style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid var(--border)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderLeft: `4px solid ${comp.color || "#666"}`,
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{comp.name || "Competidor"}</div>
-                <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>{comp.messaging || ""}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Actividad</div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: comp.activityLevel === "alta" ? "var(--danger)" : comp.activityLevel === "media" ? "var(--warning)" : "var(--text-dim)",
-                  }}
-                >
-                  {comp.activityLevel?.toUpperCase() || "—"}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: 20 }}>
-              {/* Promos */}
-              {promos.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-                    Promos detectadas
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {promos.map((promo, pi) => (
-                      <div key={pi} style={{ fontSize: 13, color: "var(--text-dim)", display: "flex", gap: 8 }}>
-                        <span style={{ color: comp.color || "#666" }}>•</span> {typeof promo === "string" ? promo : ""}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ─── Module: Instagram ───────────────────────────────────────────────────────
 function InstagramPanel({ data, status }: { data: InstagramData[] | null; status: Status }) {
   if (status === "idle") return (
@@ -1036,7 +978,8 @@ export default function Page() {
   const [xState, setXState] = useState<ModuleState<XTrend[]>>({ status: "idle", data: null });
   const [trendsState, setTrendsState] = useState<ModuleState<GoogleTrendsResult>>({ status: "idle", data: null });
   const [newsState, setNewsState] = useState<ModuleState<NewsItem[]>>({ status: "idle", data: null });
-  const [competitorsState, setCompetitorsState] = useState<ModuleState<CompetitorData[]>>({ status: "idle", data: null });
+  const [competitors, setCompetitors] = useState<CompetitorResult[]>([]);
+  const [loadingCompetitors, setLoadingCompetitors] = useState(false);
   const [brandPulseState, setBrandPulseState] = useState<ModuleState<BrandPulseResult>>({ status: "idle", data: null });
   const [scoredState, setScoredState] = useState<ModuleState<ScoredTrend[]>>({ status: "idle", data: null });
   const [instagramState, setInstagramState] = useState<ModuleState<InstagramData[]>>({ status: "idle", data: null });
@@ -1077,17 +1020,15 @@ export default function Page() {
   }, []);
 
   const scanCompetitors = useCallback(async () => {
-    setCompetitorsState({ status: "loading", data: null });
+    setLoadingCompetitors(true);
     try {
-      const res = await fetch("/api/competitors");
+      const res = await fetch("/api/competitors", { method: "POST" });
       const data = await res.json();
-      if (!res.ok || !Array.isArray(data)) {
-        setCompetitorsState({ status: "error", data: null });
-        return;
-      }
-      setCompetitorsState({ status: "done", data });
-    } catch {
-      setCompetitorsState({ status: "error", data: null });
+      if (data.success) setCompetitors(data.data);
+    } catch (err) {
+      console.error("Error:", err);
+    } finally {
+      setLoadingCompetitors(false);
     }
   }, []);
 
@@ -1152,7 +1093,6 @@ export default function Page() {
       xData: XTrend[] | null,
       googleData: GoogleTrendsResult | null,
       newsData: NewsItem[] | null,
-      compData: CompetitorData[] | null,
       pulseData: BrandPulseResult | null
     ) => {
       setScoredState({ status: "loading", data: null });
@@ -1164,7 +1104,7 @@ export default function Page() {
             xTrends: xData,
             googleTrends: googleData,
             news: newsData,
-            competitors: compData,
+            competitors: null,
             brandPulse: pulseData,
           }),
         });
@@ -1182,7 +1122,7 @@ export default function Page() {
     setScoredState({ status: "idle", data: null });
 
     // Run all scans in parallel
-    const [xData, googleData, newsData, compData, pulseData] = await Promise.all([
+    const [xData, googleData, newsData, pulseData] = await Promise.all([
       fetch("/api/scan-x")
         .then((r) => r.json())
         .then((d) => { setXState({ status: "done", data: d }); return d; })
@@ -1195,25 +1135,20 @@ export default function Page() {
         .then((r) => r.json())
         .then((d) => { setNewsState({ status: "done", data: d }); return d; })
         .catch(() => { setNewsState({ status: "error", data: null }); return null; }),
-      fetch("/api/competitors")
-        .then((r) => r.json())
-        .then((d) => { setCompetitorsState({ status: "done", data: d }); return d; })
-        .catch(() => { setCompetitorsState({ status: "error", data: null }); return null; }),
       fetch("/api/brand-pulse")
         .then((r) => r.json())
         .then((d) => { setBrandPulseState({ status: "done", data: d }); return d; })
         .catch(() => { setBrandPulseState({ status: "error", data: null }); return null; }),
     ]);
 
-    // Set loading states first
+    // Set loading states
     setXState((s) => ({ ...s, status: s.status === "idle" ? "loading" : s.status }));
     setTrendsState((s) => ({ ...s, status: s.status === "idle" ? "loading" : s.status }));
     setNewsState((s) => ({ ...s, status: s.status === "idle" ? "loading" : s.status }));
-    setCompetitorsState((s) => ({ ...s, status: s.status === "idle" ? "loading" : s.status }));
     setBrandPulseState((s) => ({ ...s, status: s.status === "idle" ? "loading" : s.status }));
 
     // Score everything with Claude
-    await scoreAll(xData, googleData, newsData, compData, pulseData);
+    await scoreAll(xData, googleData, newsData, pulseData);
 
     setScanningAll(false);
   }, [scoreAll]);
@@ -1367,7 +1302,6 @@ export default function Page() {
                       xState.data,
                       trendsState.data,
                       newsState.data,
-                      competitorsState.data,
                       brandPulseState.data
                     )
                   }
@@ -1407,11 +1341,91 @@ export default function Page() {
             <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16 }}>Actividad de Competencia</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Shell Chile · Aramco Estaciones Chile</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Shell Chile · Aramco Estaciones Chile · Anuncios activos en Meta Ads Library</div>
               </div>
-              <ScanButton onClick={scanCompetitors} loading={competitorsState.status === "loading"} label="Escanear competencia" />
+              <ScanButton onClick={scanCompetitors} loading={loadingCompetitors} label="Escanear Competencia" />
             </div>
-            <CompetitorPanel data={competitorsState.data} status={competitorsState.status} />
+
+            {loadingCompetitors && (
+              <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-dim)" }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Spinner /></div>
+                <div style={{ fontSize: 14 }}>Escaneando Meta Ads Library con Browserless...</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Esto puede tomar ~60 segundos por competidor</div>
+              </div>
+            )}
+
+            {!loadingCompetitors && competitors.length > 0 && competitors.map((comp, ci) => (
+              <div key={ci} style={{ marginBottom: 28, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                {/* Competitor Header */}
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{comp.competitor}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                      {comp.totalAdsFound} anuncios encontrados · {comp.ads.length} capturados
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {comp.analysis.channels.map((ch, j) => (
+                      <span key={j} style={{ background: "rgba(245,158,11,0.1)", color: "var(--accent)", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{ch}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Promos & Summary */}
+                <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
+                  {comp.analysis.promos.length > 0 && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                      {comp.analysis.promos.map((p, j) => (
+                        <span key={j} style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", padding: "2px 8px", borderRadius: 6, fontSize: 11 }}>🏷️ {p}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.5 }}>{comp.analysis.summary}</div>
+                </div>
+
+                {/* Ad Screenshots Grid */}
+                <div style={{ padding: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                    {comp.ads.map((ad, ai) => (
+                      <a key={ai} href={ad.adUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
+                        <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", background: "var(--bg)", transition: "border-color 0.2s" }}>
+                          {ad.screenshot ? (
+                            <img src={ad.screenshot} alt={`Ad ${ai + 1}`} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: 180, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(245,158,11,0.05)", color: "var(--text-muted)", fontSize: 12 }}>
+                              Sin captura
+                            </div>
+                          )}
+                          <div style={{ padding: "8px 10px" }}>
+                            <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
+                              {ad.bodyPreview || "Sin texto disponible"}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4, fontWeight: 600 }}>Ver anuncio completo →</div>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                    {/* Empty slots if less than 3 ads */}
+                    {Array.from({ length: Math.max(0, 3 - comp.ads.length) }).map((_, ei) => (
+                      <div key={`empty-${ei}`} style={{ border: "1px dashed var(--border)", borderRadius: 10, height: 230, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                        Sin anuncio
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Link to Meta Ads Library */}
+                <div style={{ padding: "10px 18px", borderTop: "1px solid var(--border)", textAlign: "right" }}>
+                  <a href={comp.metaAdsLibraryUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+                    Ver todos en Meta Ads Library →
+                  </a>
+                </div>
+              </div>
+            ))}
+
+            {!loadingCompetitors && competitors.length === 0 && (
+              <EmptyState text="Presiona &quot;Escanear Competencia&quot; para capturar anuncios activos de la competencia en Meta Ads Library." />
+            )}
 
             {/* Meta Ads Section */}
             <div style={{ marginTop: 32 }}>
